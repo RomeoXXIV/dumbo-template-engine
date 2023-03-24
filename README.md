@@ -25,6 +25,5 @@ Le langage Dumbo utilise la syntaxe suivante :
 Ce projet est sous licence MIT. Veuillez consulter le fichier LICENSE pour plus d'informations.
 
 ## Auteurs
-Ibraimovski Roméo
-
+Ibraimovski Roméo <br>
 Amorisson Nathan
