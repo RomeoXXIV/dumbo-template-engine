@@ -1,0 +1,19 @@
+# Mac OS X
+.DS_Store
+
+# PyCharm
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+*.log
+*.swp
+*.swo
+*~
