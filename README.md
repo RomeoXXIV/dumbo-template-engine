@@ -26,4 +26,4 @@ Ce projet est sous licence MIT. Veuillez consulter le fichier LICENSE pour plus 
 
 ## Auteurs
 Ibraimovski Roméo <br>
-Amorisson Nathan
+Amorison Nathan
