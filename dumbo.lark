@@ -1,0 +1,72 @@
+start : programme?
+
+programme : txt
+          | txt programme 
+          | dumbo_bloc 
+          | dumbo_bloc programme
+          
+txt : /(?:(?!{{).\s*)+/
+
+dumbo_bloc : "{{" expressions_list? "}}"
+
+expressions_list : expression ";" expressions_list 
+                 | expression ";"
+
+expression : print_expression 
+           | for_loop_expression
+           | assignment_expression
+           | if_then_expression
+           
+print_expression : "print" string_expression
+
+for_loop_expression : "for" variable "in" (string_list | variable) "do" expressions_list "endfor"
+           
+assignment_expression : variable ASSIGNMENT_OPERATOR (string_expression | string_list | arithmetic_expression)
+
+if_then_expression : "if" (boolean_expression | comparison_expression) "do" expressions_list "endif"
+
+boolean_expression : boolean
+                   | boolean_expression BOOLEAN_OPERATOR boolean_expression
+                   | "(" boolean_expression ")"
+
+comparison_expression : decimal_integer COMPARISON_OPERATORS decimal_integer
+
+arithmetic_expression : decimal_integer
+                      | arithmetic_expression ARITHMETIC_OPERATOR arithmetic_expression
+                      | "(" arithmetic_expression ")"
+
+string_expression : string 
+                  | variable 
+                  | string_expression "." string_expression
+                  
+string_list : "(" string_list_interior ")"
+
+string_list_interior : string 
+                     | string"," string_list_interior
+
+string : /'(.*?)'/
+
+variable : /[a-zA-Z_][a-zA-Z0-9_]*/
+
+signed_decimal_integer : ["+" | "-"] decimal_integer
+
+decimal_integer : "0" | non_zero_digit digit*
+
+digit: "0" | non_zero_digit
+
+non_zero_digit: "1".."9"
+
+boolean: "true" -> true
+       | "false" -> false
+
+ARITHMETIC_OPERATOR: "+"| "-" | "*" | "/" | "%"
+
+COMPARISON_OPERATORS: "<" | ">" | "=" | "!=" | "<=" | ">="
+
+BOOLEAN_OPERATOR: "or" | "and"
+
+ASSIGNMENT_OPERATOR : ":="
+
+%import common.WS
+%ignore WS
+
