@@ -9,8 +9,7 @@ txt : /(?:(?!{{).\s*)+/
 
 dumbo_bloc : "{{" expressions_list? "}}"
 
-expressions_list : expression ";" expressions_list 
-                 | expression ";"
+expressions_list : expression ";" expressions_list?
 
 expression : print_expression 
            | for_loop_expression
