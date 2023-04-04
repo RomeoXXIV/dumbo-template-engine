@@ -18,7 +18,9 @@ expression : print_expression
            
 print_expression : "print" string_expression
 
-for_loop_expression : "for" variable "in" (string_list | variable) "do" expressions_list "endfor"
+for_loop_expression : "for" loop_variable_assignment "do" expressions_list "endfor"
+
+loop_variable_assignment : variable "in" (string_list | variable)
            
 assignment_expression : variable ASSIGNMENT_OPERATOR (string_expression | string_list | arithmetic_expression)
 
