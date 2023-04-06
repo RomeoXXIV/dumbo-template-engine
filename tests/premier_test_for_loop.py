@@ -74,6 +74,13 @@ class ListVariable(Variable):
     def increment(self):
         self.index+=1
 
+    def __str__(self):
+        values = []
+        for var in self._value:
+            values.append(var.get())
+
+        return str(values)
+
     def __repr__(self):
         return f"{{{self._name} := {self._value[self.index]}, list size = {len(self._value)}, list content = {self._value}, current index = {self.index}}}"
 
@@ -106,9 +113,24 @@ class SymbolTable:
         if k in self._table.keys():
             return self._table[k]
         elif self.parent:
-            return parent.get(k)
+            return self.parent.get(k)
         else:
             raise NameError(f"'{k}' not in symbol table")
+
+    def change_value(self, k, newc):
+        if k in self._table.keys():
+            self._table[k] = newc
+        elif self.parent:
+            self.parent.change_value(k, newc)
+        else:
+            return NameError(f"'{k}' not in symbol table")
+
+    def get_subscope(self):
+        #return first subscope
+        return self._next[0]
+
+    def remove_scope(self, scope):
+        self._next.remove(scope)
 
     def __contains__(self, o):
         if o in self._table.keys():
@@ -138,8 +160,7 @@ class SymbolTable:
 class IntermediateCodeHandler:
     def __init__(self):
         self.index = 0
-        self.memory = SymbolTable()
-        self.current_scope = self.memory
+        self.symbolTable = None
         self.stack = []
         self._output_buffer = ""
 
@@ -148,7 +169,9 @@ class IntermediateCodeHandler:
         self.index +=1
         return self.index
 
-    def execute(self, DEBUG=False):
+    def execute(self, globalSymbolTable, DEBUG=False):
+        self.symbolTable = globalSymbolTable
+
         if DEBUG:
             print("DEBUG MODE IS ON")
 
@@ -165,6 +188,11 @@ class IntermediateCodeHandler:
                     print("DEBUG: PRINT STATEMENT")
                 #afficher du contenu
                 to_print = task.get_content()
+                # si la variable à afficher n'est pas anonyme, elle est dans la table des symboles
+                # donc il est possible que sa valeur ait été modifiée entre temps => on récupère la bonne valeur
+                if to_print.get_name() != "__ANON__":
+                    to_print = self.symbolTable.get(to_print.get_name())
+
                 if to_print.get_type() == Variable.FOR_LIST:
                     #gerer differemment les variables for_list
                     self._output_buffer += str(to_print.get_index()) + "\n"
@@ -178,22 +206,41 @@ class IntermediateCodeHandler:
                     print("DEBUG: VARIABLE ASSIGNMENT")
                 variable = task.get_content()
                 #ajout d'une variable dans la mémoire si elle n'y est pas encore
-                if not variable.get_name() in self.current_scope:
-                    self.current_scope.add_content(variable)
+                self.symbolTable.change_value(variable.get_name(), variable)
+                # if not variable.get_name() in self.symbolTable:
+                #     self.symbolTable.add_content(variable)
+                #     #ça ne devrait pas arriver puisque la table des symboles est sensée être donnée complétée
+                # else:
+                #     var = self.symbolTable.get(variable.get_name())
+                #     var._type = variable.get_type()
+                #     var._value = variable.get()
 
                 self.index += 1
 
             elif task.get_type() == AExpression.FOR:
                 if DEBUG:
                     print("DEBUG: BEGINNING FOR LOOP")
-                #gérer un nouveau scope
-                new_scope = SymbolTable(parent = self.current_scope)
-                self.current_scope.add_depth(new_scope)
-                self.current_scope = new_scope
+                #on récupère le nouveau scope créé par la boucle
+                self.symbolTable = self.symbolTable.get_subscope()
+                # new_scope = SymbolTable(parent = self.symbolTable)
+                # self.symbolTable.add_depth(new_scope)
+                # self.symbolTable = new_scope
+
                 #ajouter la loop variable dans ce scope ou check s'il n'existe pas déjà une variable de ce nom
                 loop_var = task.get_content()
-                if not loop_var.get_name() in self.current_scope:
-                    new_scope.add_content(loop_var)
+                self.symbolTable.change_value(loop_var.get_name(), loop_var)
+                # if not loop_var.get_name() in self.symbolTable:
+                #     new_scope.add_content(loop_var)
+                #     #ça ne devrait pas arriver puisque la table des symboles est sensée être donnée complétée
+                # else:
+                #     var = self.symbolTable.get(loop_var.get_name())
+                #     #si la variable était déjà de type "FOR_LIST"
+                #     if var.get_type() == Variable.FOR_LIST:
+                #         var._value = loop_var.get()
+                #         var.index = loop_var.index
+                #     #sinon
+                #     else:
+                #         var = loop_var #pas certain que ca fonctionne
 
                 self.index += 1
 
@@ -202,17 +249,21 @@ class IntermediateCodeHandler:
                     print("DEBUG: ENDING FOR LOOP OR JUMP")
                 #deal with scopes
                 index, loop_var = task.get_content()
-                loop_var = self.current_scope.get(loop_var.get_name())
+                loop_var = self.symbolTable.get(loop_var.get_name())
                 if loop_var.next() != ListVariable.EOL:
                     #On n'a pas encore parcouru toute la liste donc on retourne au début de la boucle
                     loop_var.increment()
                     self.index = index
                 else:
-                    #on regarde les instructions suivantes
+                    #on regarde les instructions suivantes (et on réinitialise l'index de la variable de la boucle for)
+                    loop_var.index = 0
                     self.index += 1
+                    #on sort du scope
+                    previous_scope = self.symbolTable
+                    self.symbolTable = self.symbolTable.parent
+                    self.symbolTable.remove_scope(previous_scope)
 
         return self._output_buffer
-
 
 
 class AExpression:
@@ -258,10 +309,11 @@ class Jump(AExpression):
 
 # Création d'un transformateur, ébauche du projet
 class ArithmeticTransformer(Transformer):
-    def __init__(self, DEBUG = False, *args, **kwargs):
+    def __init__(self, globalSymbolTable, DEBUG = False, *args, **kwargs):
         super(ArithmeticTransformer, self).__init__(*args, **kwargs)
         self._output_buffer = ""
-        self.symbolTable = SymbolTable()
+        self.symbolTable = globalSymbolTable
+        self.current_scope = self.symbolTable
         self.inter = IntermediateCodeHandler()
 
         self.DEBUG = DEBUG
@@ -350,6 +402,11 @@ class ArithmeticTransformer(Transformer):
 
         self.inter.add_instr(EndFor(index_and_var_name))
 
+        #on sort de la boucle donc on peut revenir dans le scope précédent
+        self.current_scope = self.current_scope.parent
+        # Par la grammaire, nous pouvons être certain qu'il existe au moins un scope global comme
+        # parent du scope de la for loop. On est donc certain qu'il n'est pas nul après changement
+
         return None #pas besoin de renvoyer quoi que ce soit, l'expression est terminée
 
     def loop_variable_assignment(self, items):
@@ -363,9 +420,17 @@ class ArithmeticTransformer(Transformer):
         if not iterable.get_type() == Variable.LIST:
             raise TypeError(f"{iterable.get_name()} ({iterable.get_type()}) not iterable")
 
+        #creer un nouveau scope pour la boucle for
+        new_scope = SymbolTable(parent = self.current_scope)
+        self.current_scope.add_depth(new_scope)
+        self.current_scope = new_scope
         loop_var = ListVariable(loop_var.get_name(), Variable.FOR_LIST, iterable.get())
 
-        self.symbolTable.add_content(loop_var)
+        #check si la variable existe déjà dans la table des symboles
+        #sinon, l'y ajouter
+        if not loop_var.get_name() in self.current_scope:
+            self.current_scope.add_content(loop_var)
+
         index = self.inter.add_instr(ForLoop(loop_var))
 
         return (index, loop_var)
@@ -378,8 +443,11 @@ class ArithmeticTransformer(Transformer):
         if len(items) > 1:
             new_items = []
             for item in items:
-                if item.get_type():
-                    new_items.append(item.get())
+                item_type = item.get_type()
+                if item_type == Variable.LIST or item_type == Variable.FOR_LIST:
+                    new_items.append(str(item))
+                elif item_type:
+                    new_items.append(str(item.get()))
                 else:
                     raise NameError(f"name '{item.get_name()}' is not defined")
 
@@ -392,8 +460,8 @@ class ArithmeticTransformer(Transformer):
             print("variable", items[0], self.counter)
             self.counter+=1
 
-        if items[0] in self.symbolTable:
-            return self.symbolTable.get(items[0])
+        if items[0] in self.current_scope:
+            return self.current_scope.get(items[0])
         return Variable(items[0], None, None)
 
     def assignment_expression(self, items):
@@ -405,9 +473,13 @@ class ArithmeticTransformer(Transformer):
         if not var.get_type():
             raise NameError(f"name '{item.get_name()}' is not defined")
         var._name = str(items[0].get_name())
-        #add var in scope
-        self.symbolTable.add_content(var)
+
+        #ajout de var dans le scope actuel si elle n'est pas encore dans la table des symboles
+        if not var.get_name() in self.current_scope:
+            self.current_scope.add_content(var)
+
         self.inter.add_instr(VariableAssignment(var))
+
         return None #pas besoin de retourner quoi que ce soit, l'expression est finie
 
     def signed_decimal_integer(self, items):
@@ -447,16 +519,18 @@ class ArithmeticTransformer(Transformer):
         return items[0]
 
     def get(self):
-        return self.inter.execute(DEBUG = self.DEBUG)
+        return self.inter.execute(self.symbolTable, DEBUG = self.DEBUG)
 
 #ouverture du fichier contenant la grammaire et création du parser à partir de cette grammaire
 arithmetic_parser = Lark.open("../dumbo/dumbo.lark", parser='lalr', rel_to=__file__)
 
 #ligne à tester avec la grammaire
 input_to_parse = """{{
+    i := ('t', 'e', 's', 't');
+    print 'test ' . i ;
     a := ('0', '1', '2', '3');
     for i in a do
-    print i;
+        print i;
     endfor;
     }}"""
 """
@@ -468,8 +542,8 @@ input_to_parse = """{{
 
 #parsing de la ligne de test et affichage du résultat
 parsing = arithmetic_parser.parse(input_to_parse)
-#print(parsing.pretty()) #affiche l'arbre du programme donné dans "input_to_parse"
-parsed = ArithmeticTransformer() # ArithmeticTransformer(DEBUG = True)
+print(parsing.pretty()) #affiche l'arbre du programme donné dans "input_to_parse"
+parsed = ArithmeticTransformer(SymbolTable()) # ArithmeticTransformer(SymbolTable(), DEBUG = True)
 parsed.transform(parsing)
 
 print("######## parsed ########\n")
