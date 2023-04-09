@@ -8,7 +8,6 @@ class Variable:
     FLOAT = "FLOAT"
     STRING = "STRING"
     LIST = "LIST"
-    FOR_LIST = "FOR_LIST"
     REF = "REFERENCE"
 
     def __init__(self, name, type, value):
@@ -111,7 +110,10 @@ class SymbolTable:
         Récupération d'un élément dans la table
         """
         if k in self._table.keys():
-            return self._table[k]
+            var = self._table[k]
+            if var.get_type() == Variable.REF:
+                return self.get(var.get())
+            return var
         elif self.parent:
             return self.parent.get(k)
         else:
@@ -193,8 +195,8 @@ class IntermediateCodeHandler:
                 if to_print.get_name() != "__ANON__":
                     to_print = self.symbolTable.get(to_print.get_name())
 
-                if to_print.get_type() == Variable.FOR_LIST:
-                    #gerer differemment les variables for_list
+                if to_print.get_type() == Variable.LIST:
+                    #gerer differemment les variables list
                     self._output_buffer += str(to_print.get_index()) + "\n"
                 else:
                     self._output_buffer += str(to_print.get()) + "\n"
@@ -207,13 +209,6 @@ class IntermediateCodeHandler:
                 variable = task.get_content()
                 #ajout d'une variable dans la mémoire si elle n'y est pas encore
                 self.symbolTable.change_value(variable.get_name(), variable)
-                # if not variable.get_name() in self.symbolTable:
-                #     self.symbolTable.add_content(variable)
-                #     #ça ne devrait pas arriver puisque la table des symboles est sensée être donnée complétée
-                # else:
-                #     var = self.symbolTable.get(variable.get_name())
-                #     var._type = variable.get_type()
-                #     var._value = variable.get()
 
                 self.index += 1
 
@@ -222,25 +217,10 @@ class IntermediateCodeHandler:
                     print("DEBUG: BEGINNING FOR LOOP")
                 #on récupère le nouveau scope créé par la boucle
                 self.symbolTable = self.symbolTable.get_subscope()
-                # new_scope = SymbolTable(parent = self.symbolTable)
-                # self.symbolTable.add_depth(new_scope)
-                # self.symbolTable = new_scope
 
                 #ajouter la loop variable dans ce scope ou check s'il n'existe pas déjà une variable de ce nom
                 loop_var = task.get_content()
                 self.symbolTable.change_value(loop_var.get_name(), loop_var)
-                # if not loop_var.get_name() in self.symbolTable:
-                #     new_scope.add_content(loop_var)
-                #     #ça ne devrait pas arriver puisque la table des symboles est sensée être donnée complétée
-                # else:
-                #     var = self.symbolTable.get(loop_var.get_name())
-                #     #si la variable était déjà de type "FOR_LIST"
-                #     if var.get_type() == Variable.FOR_LIST:
-                #         var._value = loop_var.get()
-                #         var.index = loop_var.index
-                #     #sinon
-                #     else:
-                #         var = loop_var #pas certain que ca fonctionne
 
                 self.index += 1
 
@@ -424,7 +404,7 @@ class ArithmeticTransformer(Transformer):
         new_scope = SymbolTable(parent = self.current_scope)
         self.current_scope.add_depth(new_scope)
         self.current_scope = new_scope
-        loop_var = ListVariable(loop_var.get_name(), Variable.FOR_LIST, iterable.get())
+        loop_var = ListVariable(loop_var.get_name(), Variable.LIST, iterable.get())
 
         #check si la variable existe déjà dans la table des symboles
         #sinon, l'y ajouter
@@ -444,7 +424,7 @@ class ArithmeticTransformer(Transformer):
             new_items = []
             for item in items:
                 item_type = item.get_type()
-                if item_type == Variable.LIST or item_type == Variable.FOR_LIST:
+                if item_type == Variable.LIST:
                     new_items.append(str(item))
                 elif item_type:
                     new_items.append(str(item.get()))
@@ -470,15 +450,24 @@ class ArithmeticTransformer(Transformer):
             self.counter+=1
 
         var = items[2]
+        new_var = items[0]
+
         if not var.get_type():
             raise NameError(f"name '{item.get_name()}' is not defined")
-        var._name = str(items[0].get_name())
+
+        if var.get_name() != "__ANON__":
+            #var est un nom de variable qui est déjà référencé dans la table de symbole => référence
+            new_var = Variable(new_var.get_name(), Variable.REF, var.get_name())
+        else:
+            #var est une variable anonyme donc on fait une assignation et pas une référence
+            new_var._type = var.get_type()
+            new_var._value = var.get()
 
         #ajout de var dans le scope actuel si elle n'est pas encore dans la table des symboles
-        if not var.get_name() in self.current_scope:
-            self.current_scope.add_content(var)
+        if not new_var.get_name() in self.current_scope:
+            self.current_scope.add_content(new_var)
 
-        self.inter.add_instr(VariableAssignment(var))
+        self.inter.add_instr(VariableAssignment(new_var))
 
         return None #pas besoin de retourner quoi que ce soit, l'expression est finie
 
@@ -522,14 +511,15 @@ class ArithmeticTransformer(Transformer):
         return self.inter.execute(self.symbolTable, DEBUG = self.DEBUG)
 
 #ouverture du fichier contenant la grammaire et création du parser à partir de cette grammaire
-arithmetic_parser = Lark.open("../dumbo/dumbo.lark", parser='lalr', rel_to=__file__)
+arithmetic_parser = Lark.open("my_grammar.lark", parser='lalr', rel_to=__file__)
 
 #ligne à tester avec la grammaire
 input_to_parse = """{{
     i := ('t', 'e', 's', 't');
     print 'test ' . i ;
     a := ('0', '1', '2', '3');
-    for i in a do
+    b := i;
+    for i in b do
         print i;
     endfor;
     }}"""
@@ -542,11 +532,11 @@ input_to_parse = """{{
 
 #parsing de la ligne de test et affichage du résultat
 parsing = arithmetic_parser.parse(input_to_parse)
-print(parsing.pretty()) #affiche l'arbre du programme donné dans "input_to_parse"
-parsed = ArithmeticTransformer(SymbolTable()) # ArithmeticTransformer(SymbolTable(), DEBUG = True)
+#print(parsing.pretty()) #affiche l'arbre du programme donné dans "input_to_parse"
+parsed = ArithmeticTransformer(SymbolTable()) #ArithmeticTransformer(SymbolTable(), DEBUG = True)
 parsed.transform(parsing)
 
-print("######## parsed ########\n")
+print("\n######## parsed ########\n")
 
 print("\n######## OUTPUT ########\n")
 
