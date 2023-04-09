@@ -511,7 +511,7 @@ class ArithmeticTransformer(Transformer):
         return self.inter.execute(self.symbolTable, DEBUG = self.DEBUG)
 
 #ouverture du fichier contenant la grammaire et création du parser à partir de cette grammaire
-arithmetic_parser = Lark.open("my_grammar.lark", parser='lalr', rel_to=__file__)
+arithmetic_parser = Lark.open("../dumbo/dumbo.lark", parser='lalr', rel_to=__file__)
 
 #ligne à tester avec la grammaire
 input_to_parse = """{{
