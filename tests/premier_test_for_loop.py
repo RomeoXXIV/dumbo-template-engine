@@ -7,7 +7,9 @@ class Variable:
     INT = "INTEGER"
     FLOAT = "FLOAT"
     STRING = "STRING"
+    STRING_CONCAT = "STRING_CONCAT"
     LIST = "LIST"
+    FOR_LIST = "FOR_LIST"
     REF = "REFERENCE"
 
     def __init__(self, name, type, value):
@@ -45,13 +47,13 @@ class Variable:
     def __repr__(self):
         return f"{{{self._name} := {self._value} ({self._type})}}"
 
-class ListVariable(Variable):
+class Iterable(Variable):
     EOL = "EOL" #End Of List
     def __init__(self, *args):
-        super(ListVariable, self).__init__(*args)
+        super(Iterable, self).__init__(*args)
         self.index = 0
 
-    def get_index(self, index = None):
+    def get(self, index = None):
         if index:
             if (index < len(self._value)):
                 return self._value[index]
@@ -65,9 +67,9 @@ class ListVariable(Variable):
 
     def next(self):
         try:
-            result = self.get_index(index = self.index+1)
+            result = self.get(index = self.index+1)
         except IndexError:
-            result = ListVariable.EOL
+            result = Iterable.EOL
         return result
 
     def increment(self):
@@ -110,10 +112,7 @@ class SymbolTable:
         Récupération d'un élément dans la table
         """
         if k in self._table.keys():
-            var = self._table[k]
-            if var.get_type() == Variable.REF:
-                return self.get(var.get())
-            return var
+            return self._table[k]
         elif self.parent:
             return self.parent.get(k)
         else:
@@ -146,7 +145,7 @@ class SymbolTable:
         _ = "[\n"
 
         for key, value in self._table.items():
-            _ += f"{key} := {value.get()}\n"
+            _ += f"{key} := {value.get()} ({value.get_type()})\n"
 
         for elmnt in self._next:
             _ += f"{elmnt}\n"
@@ -181,9 +180,9 @@ class IntermediateCodeHandler:
 
         while self.index < len(self.stack):
             task = self.stack[self.index]
-            
+
             if DEBUG:
-                print("DEBUG:", task)
+                print("\nDEBUG:", task)
 
             if task.get_type() == AExpression.PRINT:
                 if DEBUG:
@@ -195,10 +194,18 @@ class IntermediateCodeHandler:
                 if to_print.get_name() != "__ANON__":
                     to_print = self.symbolTable.get(to_print.get_name())
 
-                if to_print.get_type() == Variable.LIST:
-                    #gerer differemment les variables list
-                    self._output_buffer += str(to_print.get_index()) + "\n"
+                if to_print.get_type() == Variable.STRING_CONCAT:
+                    to_add = ""
+                    for item in to_print.get():
+                        while item.get_type() == Variable.REF:
+                            item = self.symbolTable.get(item.get())
+
+                        to_add += str(item.get()) + " "
+                    self._output_buffer += to_add + "\n"
                 else:
+                    while to_print.get_type() == Variable.REF:
+                        to_print = self.symbolTable.get(to_print.get())
+
                     self._output_buffer += str(to_print.get()) + "\n"
 
                 self.index += 1
@@ -219,8 +226,16 @@ class IntermediateCodeHandler:
                 self.symbolTable = self.symbolTable.get_subscope()
 
                 #ajouter la loop variable dans ce scope ou check s'il n'existe pas déjà une variable de ce nom
-                loop_var = task.get_content()
-                self.symbolTable.change_value(loop_var.get_name(), loop_var)
+                loop_var, iterable_var = task.get_content()
+                #check si l'itérable est bien itérable
+                while iterable_var.get_type() == Variable.REF:
+                    iterable_var = self.symbolTable.get(iterable_var.get())
+                if iterable_var.get_type() != Variable.LIST:
+                    raise NameError(f"{iterable_var.get_name()} ({iterable_var.get_type()}) not iterable")
+
+                new_loop_var = Iterable(loop_var.get_name(), Variable.FOR_LIST, iterable_var.get())
+
+                self.symbolTable.change_value(loop_var.get_name(), new_loop_var)
 
                 self.index += 1
 
@@ -228,14 +243,18 @@ class IntermediateCodeHandler:
                 if DEBUG:
                     print("DEBUG: ENDING FOR LOOP OR JUMP")
                 #deal with scopes
-                index, loop_var = task.get_content()
-                loop_var = self.symbolTable.get(loop_var.get_name())
-                if loop_var.next() != ListVariable.EOL:
+                index, loop_var_name = task.get_content()
+                loop_var = self.symbolTable.get(loop_var_name)
+                if loop_var.next() != Iterable.EOL:
                     #On n'a pas encore parcouru toute la liste donc on retourne au début de la boucle
+                    if DEBUG:
+                        print("DEBUG: JUMP")
                     loop_var.increment()
                     self.index = index
                 else:
                     #on regarde les instructions suivantes (et on réinitialise l'index de la variable de la boucle for)
+                    if DEBUG:
+                        print("DEBUG: ENDING FOR LOOP")
                     loop_var.index = 0
                     self.index += 1
                     #on sort du scope
@@ -243,6 +262,7 @@ class IntermediateCodeHandler:
                     self.symbolTable = self.symbolTable.parent
                     self.symbolTable.remove_scope(previous_scope)
 
+        print()
         return self._output_buffer
 
 
@@ -264,7 +284,7 @@ class AExpression:
         return self._type
 
     def __repr__(self):
-        return f"{self._type}: {self.content}"
+        return f"{self._type}: {repr(self.content)}"
 
 class Printing(AExpression):
     def __init__(self, content):
@@ -276,11 +296,17 @@ class VariableAssignment(AExpression):
 
 class ForLoop(AExpression):
     def __init__(self, content):
-        super(ForLoop, self).__init__(AExpression.FOR, content) #on stocke une variable
+        super(ForLoop, self).__init__(AExpression.FOR, content) #on stocke une variable et un itérable (tuple)
+
+    def __repr__(self):
+        return f"{self._type}: LOOP VARIABLE = {self.content[0].get_name()}"
 
 class EndFor(AExpression):
     def __init__(self, content):
         super(EndFor, self).__init__(AExpression.ENDFOR, content) #index et le nom d'une variable (tuple)
+
+    def __repr__(self):
+        return f"{self._type}: JUMP TO INSTRUCTION {self.content[0]}, INCREMENT {self.content[1]}"
 
 class Jump(AExpression):
     def __init__(self, content):
@@ -288,9 +314,9 @@ class Jump(AExpression):
 
 
 # Création d'un transformateur, ébauche du projet
-class ArithmeticTransformer(Transformer):
+class DumboBlocTransformer(Transformer):
     def __init__(self, globalSymbolTable, DEBUG = False, *args, **kwargs):
-        super(ArithmeticTransformer, self).__init__(*args, **kwargs)
+        super(DumboBlocTransformer, self).__init__(*args, **kwargs)
         self._output_buffer = ""
         self.symbolTable = globalSymbolTable
         self.current_scope = self.symbolTable
@@ -343,7 +369,7 @@ class ArithmeticTransformer(Transformer):
             print("string_list", self.counter)
             self.counter+=1
 
-        var = ListVariable("__ANON__", Variable.LIST, items[0])
+        var = Variable("__ANON__", Variable.LIST, items[0])
         return var
 
     def string(self, items):
@@ -369,9 +395,11 @@ class ArithmeticTransformer(Transformer):
             self.counter+=1
 
         #self._output_buffer += str(items[0].get()) + "\n"
-        result = f"print({str(items[0].get())})"
-        self.inter.add_instr(Printing(items[0]))
-        return result
+        var = items[0]
+        if items[0].get_name() != "__ANON__":
+            var = Variable("__ANON__", Variable.REF, var.get_name())
+        self.inter.add_instr(Printing(var))
+        return None
 
     def for_loop_expression(self, items):
         if self.DEBUG:
@@ -379,8 +407,9 @@ class ArithmeticTransformer(Transformer):
             self.counter+=1
 
         index_and_var_name, expression_list = items
+        index, loop_var = index_and_var_name
 
-        self.inter.add_instr(EndFor(index_and_var_name))
+        self.inter.add_instr(EndFor((index, loop_var.get_name())))
 
         #on sort de la boucle donc on peut revenir dans le scope précédent
         self.current_scope = self.current_scope.parent
@@ -396,22 +425,18 @@ class ArithmeticTransformer(Transformer):
 
         loop_var, iterable = items
 
-        #Check iterable est bien iterable
-        if not iterable.get_type() == Variable.LIST:
-            raise TypeError(f"{iterable.get_name()} ({iterable.get_type()}) not iterable")
-
         #creer un nouveau scope pour la boucle for
         new_scope = SymbolTable(parent = self.current_scope)
         self.current_scope.add_depth(new_scope)
         self.current_scope = new_scope
-        loop_var = ListVariable(loop_var.get_name(), Variable.LIST, iterable.get())
+        loop_var = Iterable(loop_var.get_name(), Variable.FOR_LIST, [Variable(None,None,None)])
 
         #check si la variable existe déjà dans la table des symboles
         #sinon, l'y ajouter
         if not loop_var.get_name() in self.current_scope:
             self.current_scope.add_content(loop_var)
 
-        index = self.inter.add_instr(ForLoop(loop_var))
+        index = self.inter.add_instr(ForLoop((loop_var, iterable)))
 
         return (index, loop_var)
 
@@ -420,18 +445,19 @@ class ArithmeticTransformer(Transformer):
             print("string_expression", self.counter)
             self.counter+=1
 
+        for item in items:
+            item_type = item.get_type()
+            if item_type == None:
+                raise NameError(f"name '{item.get_name()}' is not defined")
+
         if len(items) > 1:
             new_items = []
             for item in items:
-                item_type = item.get_type()
-                if item_type == Variable.LIST:
-                    new_items.append(str(item))
-                elif item_type:
-                    new_items.append(str(item.get()))
+                if item.get_name() != "__ANON__":
+                    new_items.append(Variable("__ANON__", Variable.REF, item.get_name()))
                 else:
-                    raise NameError(f"name '{item.get_name()}' is not defined")
-
-            return Variable("__ANON__", Variable.STRING, " ".join(new_items))
+                    new_items.append(item)
+            return Variable("__ANON__", Variable.STRING_CONCAT, new_items)
 
         return items[0]
 
@@ -450,16 +476,19 @@ class ArithmeticTransformer(Transformer):
             self.counter+=1
 
         var = items[2]
-        new_var = items[0]
 
         if not var.get_type():
             raise NameError(f"name '{item.get_name()}' is not defined")
 
         if var.get_name() != "__ANON__":
             #var est un nom de variable qui est déjà référencé dans la table de symbole => référence
-            new_var = Variable(new_var.get_name(), Variable.REF, var.get_name())
+            new_var = Variable(items[0].get_name(), Variable.REF, var.get_name())
         else:
             #var est une variable anonyme donc on fait une assignation et pas une référence
+            if var.get_type() == Variable.FOR_LIST:
+                new_var = Iterable(items[0].get_name(), None, None)
+            else:
+                new_var = Variable(items[0].get_name(), None, None)
             new_var._type = var.get_type()
             new_var._value = var.get()
 
@@ -515,6 +544,8 @@ arithmetic_parser = Lark.open("../dumbo/dumbo.lark", parser='lalr', rel_to=__fil
 
 #ligne à tester avec la grammaire
 input_to_parse = """{{
+    a := 'test';
+    i := ('a', 'b', 'c', 'd');
     i := ('t', 'e', 's', 't');
     print 'test ' . i ;
     a := ('0', '1', '2', '3');
@@ -533,7 +564,8 @@ input_to_parse = """{{
 #parsing de la ligne de test et affichage du résultat
 parsing = arithmetic_parser.parse(input_to_parse)
 #print(parsing.pretty()) #affiche l'arbre du programme donné dans "input_to_parse"
-parsed = ArithmeticTransformer(SymbolTable()) #ArithmeticTransformer(SymbolTable(), DEBUG = True)
+globalSymbolTable = SymbolTable()
+parsed = DumboBlocTransformer(globalSymbolTable) #ArithmeticTransformer(SymbolTable(), DEBUG = True)
 parsed.transform(parsing)
 
 print("\n######## parsed ########\n")
