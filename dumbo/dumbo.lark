@@ -24,9 +24,11 @@ loop_variable_assignment : variable "in" (string_list | variable)
            
 assignment_expression : variable ASSIGNMENT_OPERATOR (string_expression | string_list | arithmetic_expression)
 
-if_then_expression : "if" (boolean_expression | comparison_expression) "do" expressions_list "endif"
+if_then_expression : "if" if_verification "do" expressions_list "endif"
 
-boolean_expression : boolean
+if_verification : (boolean_expression | comparison_expression)
+
+boolean_expression : BOOLEAN
                    | boolean_expression BOOLEAN_OPERATOR boolean_expression
                    | "(" boolean_expression ")"
 
@@ -57,8 +59,7 @@ digit: "0" | non_zero_digit
 
 non_zero_digit: "1".."9"
 
-boolean: "true" -> true
-       | "false" -> false
+BOOLEAN: "true" | "false"
 
 ARITHMETIC_OPERATOR: "+"| "-" | "*" | "/" | "%"
 
@@ -70,4 +71,3 @@ ASSIGNMENT_OPERATOR : ":="
 
 %import common.WS
 %ignore WS
-
