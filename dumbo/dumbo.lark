@@ -24,9 +24,9 @@ loop_variable_assignment : variable "in" (string_list | variable)
            
 assignment_expression : variable ASSIGNMENT_OPERATOR (string_expression | string_list | arithmetic_expression)
 
-if_then_expression : "if" if_verification "do" expressions_list "endif"
+if_then_expression : "if" if_condition "do" expressions_list "endif"
 
-if_verification : (boolean_expression | comparison_expression)
+if_condition : (boolean_expression | comparison_expression)
 
 boolean_expression : BOOLEAN
                    | boolean_expression BOOLEAN_OPERATOR boolean_expression
@@ -35,7 +35,7 @@ boolean_expression : BOOLEAN
 comparison_expression : decimal_integer COMPARISON_OPERATORS decimal_integer
 
 arithmetic_expression : decimal_integer
-                      | arithmetic_expression ARITHMETIC_OPERATOR arithmetic_expression
+                      | (arithmetic_expression | variable) ARITHMETIC_OPERATOR (arithmetic_expression | variable)
                       | "(" arithmetic_expression ")"
 
 string_expression : string 

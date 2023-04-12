@@ -15,6 +15,37 @@ class PseudoCode:
     def execute(self, symbolTable, DEBUG=False):
         self.symbolTable = symbolTable
 
+        def resolve(v1, op, v2):
+            result_v1 = v1.get()
+            result_v2 = v2.get()
+            _v1 = v1
+            _v2 = v2
+            while _v1.get_type() == REF:
+                _v1 = self.symbolTable.get(result_v1)
+                result_v1 = _v1.get()
+            if v1.get_type() == MATH_OP:
+                result_v1 = resolve(*result_v1)
+
+            while _v2.get_type() == REF:
+                _v2 = self.symbolTable.get(result_v2)
+                result_v2 = _v2.get()
+            if _v2.get_type() == MATH_OP:
+                result_v2 = resolve(*result_v2)
+
+            if _v1.get_type() != INT and _v1.get_type() != MATH_OP:
+                raise TypeError(f"Can't convert {_v1.get_type()} to {INT}")
+            if _v2.get_type() != INT and _v2.get_type() != MATH_OP:
+                raise TypeError(f"Can't convert {_v1.get_type()} to {INT}");
+
+            if op == "+":
+                return result_v1 + result_v2
+            elif op == "-":
+                return result_v1 - result_v2
+            elif op == "*":
+                return result_v1 * result_v2
+            #elif op == "/":
+            return result_v1 / result_v2
+
         if DEBUG:
             print("DEBUG MODE IS ON\n")
             print("STACK CONTENT:")
@@ -47,6 +78,9 @@ class PseudoCode:
 
                         to_add += str(item.get()) + " "
                     self._output_buffer += to_add + "\n"
+                elif to_print.get_type() == MATH_OP:
+                    to_print_content = to_print.get()
+                    self._output_buffer += str(resolve(*to_print_content))
                 else:
                     while to_print.get_type() == REF:
                         to_print = self.symbolTable.get(to_print.get())
@@ -59,6 +93,14 @@ class PseudoCode:
                 if DEBUG:
                     print("DEBUG: VARIABLE ASSIGNMENT")
                 variable = task.get_content()
+
+                #si la variable est une opération arithmétique, on l'évalue
+                if variable.get_type() == MATH_OP:
+                    #print("before:", repr(variable))
+                    variable_content = variable.get()
+                    result = resolve(*variable_content)
+                    variable = Variable(variable.get_name(), INT, result)
+                #print(repr(variable))
                 #ajout d'une variable dans la mémoire si elle n'y est pas encore
                 self.symbolTable.change_value(variable.get_name(), variable)
 

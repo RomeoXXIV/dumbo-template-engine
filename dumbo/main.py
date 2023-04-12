@@ -37,7 +37,7 @@ def main(data_file, template_file):
     data_tree_parser.transform(data_tree)
 
     template_tree = lark_parser.parse(template_file)
-    template_tree_parser = DE.DumboTemplateTransformer(globalSymbolTable)
+    template_tree_parser = DE.DumboTemplateTransformer(globalSymbolTable, DEBUG = True)
     output = template_tree_parser.transform(template_tree)
 
     print(f"######## OUTPUT ########\n\n{output}")
