@@ -1,4 +1,5 @@
-#from variable import *
+#encoding: utf-8
+
 from intermediate_code import *
 from lark import Transformer
 
@@ -7,6 +8,10 @@ class DumboBlocTransformer(Transformer):
         super(DumboBlocTransformer, self).__init__(*args, **kwargs)
         self._output_buffer = ""
         self.symbolTable = symbolTable
+        self.current_scope = self.symbolTable
+        self.globalSymbolTable = self.symbolTable
+        while self.globalSymbolTable.parent != None:
+            self.globalSymbolTable = self.globalSymbolTable.parent
         self.inter = pseudoCodeHandler
 
         #only for debug purpose
@@ -67,11 +72,12 @@ class DumboBlocTransformer(Transformer):
         return var
 
     def dumbo_bloc(self, items):
+        #on ne passe ici que pour le parsing du fichier data
         if self.DEBUG:
             print("dumbo_bloc", self.counter)
             self.counter+=1
 
-        return self.inter.execute(self.symbolTable)
+        return self.inter.execute(self.current_scope)
 
     def print_expression(self, items):
         if self.DEBUG:
@@ -95,6 +101,9 @@ class DumboBlocTransformer(Transformer):
 
         self.inter.add_instr(EndFor((index, loop_var.get_name())))
 
+        #on sort du scope
+        self.current_scope = self.current_scope.parent
+
         return None #pas besoin de renvoyer quoi que ce soit, l'expression est terminée
 
     def loop_variable_assignment(self, items):
@@ -107,10 +116,14 @@ class DumboBlocTransformer(Transformer):
         #initialisation de la variable de la boucle
         loop_var = Iterable(loop_var.get_name(), FOR_LIST, [Variable(None,None,None)])
 
-        #check si la variable existe déjà dans la table des symboles
-        #sinon, l'y ajouter
-        if not loop_var.get_name() in self.symbolTable:
-            self.symbolTable.add_content(loop_var)
+        #création du nouveau scope
+        new_scope = SymbolTable(self.current_scope)
+        self.current_scope.add_depth(new_scope)
+        self.current_scope = new_scope
+
+        #on ajoute la variable dans le scope
+        #si la variable existe déjà dans un scope précédent, on ajoute quand même pour que la variable soit purement locale
+        self.current_scope.add_content(loop_var)
 
         index = self.inter.add_instr(ForLoop((loop_var, iterable)))
 
@@ -144,8 +157,9 @@ class DumboBlocTransformer(Transformer):
             print("variable", items[0], self.counter)
             self.counter+=1
 
-        if items[0] in self.symbolTable:
-            return self.symbolTable.get(items[0])
+        if items[0] in self.current_scope:
+            return self.current_scope.get(items[0])
+
         return Variable(items[0], None, None)
 
     def assignment_expression(self, items):
@@ -164,15 +178,16 @@ class DumboBlocTransformer(Transformer):
         else:
             #var est une variable anonyme donc on fait une assignation et pas une référence
             if var.get_type() == FOR_LIST:
-                new_var = Iterable(items[0].get_name(), None, None)
+                new_var = Iterable(items[0].get_name(), var.get_type(), None)
             else:
-                new_var = Variable(items[0].get_name(), None, None)
+                new_var = Variable(items[0].get_name(), var.get_type(), None)
             new_var._type = var.get_type()
             new_var._value = var.get()
 
-        #ajout de var dans le scope actuel si elle n'est pas encore dans la table des symboles
-        if not new_var.get_name() in self.symbolTable:
-            self.symbolTable.add_content(new_var)
+        #ajout de var dans le scope actuel si elle n'est pas déjà dans la table des symboles
+        if not new_var.get_name() in self.current_scope:
+            #la variable n'existe pas du tout
+            self.globalSymbolTable.add_content(new_var)
 
         self.inter.add_instr(VariableAssignment(new_var))
 
@@ -288,7 +303,7 @@ class DumboBlocTransformer(Transformer):
 class DumboTemplateTransformer(Transformer):
     def __init__(self, symbolTable, DEBUG = False, *args, **kwargs):
         super(DumboTemplateTransformer, self).__init__(*args, **kwargs)
-        self.symbolTable = symbolTable
+        self.current_scope = symbolTable
 
         #only for debug purpose
         self.DEBUG = DEBUG
@@ -326,8 +341,14 @@ class DumboTemplateTransformer(Transformer):
             self.counter += 1
 
         #dumbo bloc à parser
+        new_scope = SymbolTable(self.current_scope)
+        self.current_scope.add_depth(new_scope)
         pseudoCode = PseudoCode()
-        dumbo_bloc_content = DumboBlocTransformer(self.symbolTable, pseudoCode, DEBUG = self.DEBUG)
+        dumbo_bloc_content = DumboBlocTransformer(new_scope, pseudoCode, DEBUG = self.DEBUG)
         dumbo_bloc_content.transform(items[0])
 
-        return pseudoCode.execute(self.symbolTable, DEBUG=self.DEBUG)
+        result = pseudoCode.execute(new_scope, DEBUG=self.DEBUG)
+
+        self.current_scope.remove_scope(self.current_scope.get_subscope())
+
+        return result

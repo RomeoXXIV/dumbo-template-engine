@@ -90,8 +90,8 @@ class SymbolTable:
     """
     def __init__(self, parent=None):
         self.parent = parent
-        self._table = {}
-        self._next = []
+        self._table = {} #key: variable name, value: Variable
+        self._next = [] #list of subscopes
 
     def add_content(self, newc):
         """
@@ -124,6 +124,9 @@ class SymbolTable:
         else:
             return NameError(f"'{k}' not in symbol table")
 
+    def get_localScope(self):
+        return self._table.keys()
+
     def get_subscope(self):
         #return first subscope
         return self._next[0]
@@ -140,11 +143,12 @@ class SymbolTable:
             return False
 
     def __str__(self):
-        _ = "[\n"
+        _ = "[scope:\n"
 
         for key, value in self._table.items():
             _ += f"{key} := {value.get()} ({value.get_type()})\n"
 
+        _ += "\nsubscopes:\n"
         for elmnt in self._next:
             _ += f"{elmnt}\n"
 

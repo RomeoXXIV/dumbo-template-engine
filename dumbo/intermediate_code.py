@@ -13,7 +13,10 @@ class PseudoCode:
         return self.index
 
     def execute(self, symbolTable, DEBUG=False):
-        self.symbolTable = symbolTable
+        globalSymbolTable = symbolTable
+        self.symbolTable = globalSymbolTable
+        while globalSymbolTable.parent:
+            globalSymbolTable = globalSymbolTable.parent
 
         def resolve(v1, op, v2):
             result_v1 = v1.get()
@@ -76,8 +79,8 @@ class PseudoCode:
                         while item.get_type() == REF:
                             item = self.symbolTable.get(item.get())
 
-                        to_add += str(item.get()) + " "
-                    self._output_buffer += to_add + "\n"
+                        to_add += str(item.get())
+                    self._output_buffer += to_add
                 elif to_print.get_type() == MATH_OP:
                     to_print_content = to_print.get()
                     self._output_buffer += str(resolve(*to_print_content))
@@ -85,7 +88,9 @@ class PseudoCode:
                     while to_print.get_type() == REF:
                         to_print = self.symbolTable.get(to_print.get())
 
-                    self._output_buffer += str(to_print.get()) + "\n"
+                    self._output_buffer += str(to_print.get())
+
+                #self._output_buffer += "\n"
 
                 self.index += 1
 
@@ -102,6 +107,18 @@ class PseudoCode:
                     variable = Variable(variable.get_name(), INT, result)
                 #print(repr(variable))
                 #ajout d'une variable dans la mémoire si elle n'y est pas encore
+
+                # if variable.get_name() in self.symbolTable:
+                #     #la variable existe déjà
+                #     if variable.get_name() in self.symbolTable.get_scope():
+                #         #la variable existe au niveau local
+                #         self.symbolTable.change_value(variable.get_name(), variable)
+                #     else:
+                #         #la variable existe au niveau global donc on crée une nouvelle variable locale du même nom
+                #         self.symbolTable.add_content(variable)
+                # else:
+                #     #la vari
+
                 self.symbolTable.change_value(variable.get_name(), variable)
 
                 self.index += 1
@@ -109,6 +126,9 @@ class PseudoCode:
             elif task.get_type() == AExpression.FOR:
                 if DEBUG:
                     print("DEBUG: BEGINNING FOR LOOP")
+
+                #on réupère le subscope
+                self.symbolTable = self.symbolTable.get_subscope()
 
                 #ajouter la loop variable dans ce scope ou check s'il n'existe pas déjà une variable de ce nom
                 loop_var, iterable_var = task.get_content()
@@ -137,11 +157,13 @@ class PseudoCode:
                     loop_var.increment()
                     self.index = index
                 else:
-                    #on regarde les instructions suivantes (et on réinitialise l'index de la variable de la boucle for)
+                    #on regarde les instructions suivantes
                     if DEBUG:
                         print("DEBUG: ENDING FOR LOOP")
-                    loop_var.index = 0
                     self.index += 1
+                    #on sort du subscope donc on peut le supprimer
+                    self.symbolTable = self.symbolTable.parent
+                    self.symbolTable.remove_scope(self.symbolTable.get_subscope())
 
             elif task.get_type() == AExpression.IF:
                 if DEBUG:
