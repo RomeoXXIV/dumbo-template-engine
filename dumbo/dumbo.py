@@ -1,12 +1,13 @@
 #!/usr/bin/python3
-#encoding: utf-8
+# encoding: utf-8
 
 import argparse
 import os
 import sys
 
-import dumbo_engine as DE
+import dumbo_transformers as dt
 from lark import Lark
+
 
 def main(data_file, template_file):
     # Vérifier si les fichiers spécifiés existent (lien symbolique non valide ici)
@@ -33,14 +34,14 @@ def main(data_file, template_file):
 
     lark_parser = Lark.open("dumbo.lark", parser='lalr', rel_to=__file__)
 
-    globalSymbolTable = DE.SymbolTable()
+    global_symbol_table = dt.SymbolTable()
 
     data_tree = lark_parser.parse(data_file)
-    data_tree_parser = DE.DumboBlocTransformer(globalSymbolTable, DE.PseudoCode())
+    data_tree_parser = dt.DumboBlocTransformer(global_symbol_table, dt.IntermediateCodeInterpreter())
     data_tree_parser.transform(data_tree)
 
     template_tree = lark_parser.parse(template_file)
-    template_tree_parser = DE.DumboTemplateTransformer(globalSymbolTable)
+    template_tree_parser = dt.DumboTemplateTransformer(global_symbol_table)
     output = template_tree_parser.transform(template_tree)
 
     print(f"\n######## OUTPUT ########\n\n{output}")

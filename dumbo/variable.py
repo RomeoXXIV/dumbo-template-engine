@@ -24,16 +24,6 @@ class Variable:
     """
 
     def __init__(self, name, vtype, value):
-        """
-        Parameters:
-        ----------
-        name : str
-            The name of the variable.
-        vtype : str
-            The type of the variable.
-        value : Any
-            The value of the variable.
-        """
         self._name = name
         self._vtype = vtype
         self._value = value
@@ -83,16 +73,6 @@ class Iterable(Variable):
     EOL = "EOL"  # End Of List
 
     def __init__(self, name, vtype, value):
-        """
-        Parameters:
-        ----------
-        name : str
-            The name of the variable.
-        vtype : str
-            The type of the variable.
-        value : Any
-            The value of the variable.
-        """
         super().__init__(name, vtype, value)
         self.index = 0
 
@@ -175,16 +155,6 @@ class SymbolTable:
         """
 
     def __init__(self, parent=None):
-        """
-        Parameters:
-        ----------
-        parent : SymbolTable, optional
-            The parent symbol table, None for the global scope.
-        _table : dict
-            A dictionary with variable names as keys and Variable objects as values.
-        _next : list
-            A list of subscopes (nested symbol tables).
-        """
         self.parent = parent
         self._table = {}  # key: variable name, value: Variable
         self._next = []  # list of subscopes

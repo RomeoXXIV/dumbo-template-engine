@@ -1,0 +1,12 @@
+{{
+    hello := 'hello';
+    hello_str := hello;
+    world_str := 'world';
+    space_str := ' ';
+    hello_world_str_var := 'hello '.world_str;
+    hello_world_var_str := hello_str.' world';
+    hello_world_str_str_str := 'hello'.' '.'world';
+    hello_world_var_var_var := hello_str.space_str.world_str;
+    hello_world_str_var_str := 'hello'.space_str.'world';
+    hello_world_var_str_var := hello_str.' '.world_str;
+}}
