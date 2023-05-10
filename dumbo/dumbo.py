@@ -5,7 +5,7 @@ import argparse
 import os
 import sys
 
-import dumbo_transformers as dt
+from dumbo.dumbo_transformers import *
 from lark import Lark
 
 
@@ -34,17 +34,17 @@ def main(data_file, template_file):
 
     lark_parser = Lark.open("dumbo.lark", parser='lalr', rel_to=__file__)
 
-    global_symbol_table = dt.SymbolTable()
+    global_symbol_table = SymbolTable()
 
     data_tree = lark_parser.parse(data_file)
-    data_tree_parser = dt.DumboBlocTransformer(global_symbol_table, dt.IntermediateCodeInterpreter())
+    data_tree_parser = DumboBlocTransformer(global_symbol_table, IntermediateCodeInterpreter())
     data_tree_parser.transform(data_tree)
 
     template_tree = lark_parser.parse(template_file)
-    template_tree_parser = dt.DumboTemplateTransformer(global_symbol_table)
+    template_tree_parser = DumboTemplateTransformer(global_symbol_table)
     output = template_tree_parser.transform(template_tree)
 
-    print(f"\n######## OUTPUT ########\n\n{output}")
+    return output
 
 
 if __name__ == "__main__":
@@ -54,4 +54,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    main(args.data_file, args.template_file)
+    print("\n######## OUTPUT ########\n")
+    print(main(args.data_file, args.template_file))
