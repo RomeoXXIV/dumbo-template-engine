@@ -8,7 +8,7 @@ def test_valide():
 
 
 @pytest.mark.parametrize("data_file, template_file, output", [
-    (f"examples/data_t{i}.dumbo", f"examples/template{i}.dumbo", f"examples/output{i}.html")
+    (f"tests/examples/data_t{i}.dumbo", f"tests/examples/template{i}.dumbo", f"tests/examples/output{i}.html")
     for i in range(1, 4)
 ])
 def test_output_generation(data_file, template_file, output):
