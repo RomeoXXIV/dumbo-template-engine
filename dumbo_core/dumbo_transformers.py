@@ -1,5 +1,5 @@
 # encoding: utf-8
-from intermediate_code_interpreter import *
+from dumbo_core.intermediate_code_interpreter import *
 from lark import Transformer
 
 

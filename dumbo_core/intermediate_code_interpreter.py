@@ -1,4 +1,4 @@
-from variable import *
+from dumbo_core.variable import *
 
 
 class IntermediateCodeInterpreter:
