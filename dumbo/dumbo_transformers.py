@@ -1,5 +1,5 @@
 # encoding: utf-8
-from dumbo.intermediate_code_interpreter import *
+from intermediate_code_interpreter import *
 from lark import Transformer
 
 
@@ -181,7 +181,7 @@ class DumboBlocTransformer(Transformer):
             self.counter += 1
 
         if items[0] in self.current_scope:
-            return self.current_scope.get_value(items[0])
+            return self.current_scope.get(items[0])
 
         return Variable(items[0], None, None)
 

@@ -1,13 +1,8 @@
 #!/usr/bin/python3
 # encoding: utf-8
 
-import argparse
-import os
-import sys
-
-from dumbo.dumbo_transformers import *
+from dumbo_transformers import *
 from lark import Lark
-
 
 def main(data_file, template_file):
     # Vérifier si les fichiers spécifiés existent (lien symbolique non valide ici)
@@ -48,6 +43,10 @@ def main(data_file, template_file):
 
 
 if __name__ == "__main__":
+    import argparse
+    import os
+    import sys
+
     parser = argparse.ArgumentParser(description="Generate a file from a template and data.")
     parser.add_argument("data_file", help="The path to the data file")
     parser.add_argument("template_file", help="The path to the model file")

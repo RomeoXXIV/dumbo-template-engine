@@ -1,4 +1,4 @@
-from dumbo.variable import *
+from variable import *
 
 
 class IntermediateCodeInterpreter:
@@ -77,13 +77,13 @@ class IntermediateCodeInterpreter:
             _v1 = v1
             _v2 = v2
             while _v1.get_type() == REF:
-                _v1 = self.symbolTable.get_value(result_v1)
+                _v1 = self.symbolTable.get(result_v1)
                 result_v1 = _v1.get_value()
             if v1.get_type() == MATH_OP:
                 result_v1 = resolve(*result_v1)
 
             while _v2.get_type() == REF:
-                _v2 = self.symbolTable.get_value(result_v2)
+                _v2 = self.symbolTable.get(result_v2)
                 result_v2 = _v2.get_value()
             if _v2.get_type() == MATH_OP:
                 result_v2 = resolve(*result_v2)
@@ -124,13 +124,13 @@ class IntermediateCodeInterpreter:
                 # si la variable à afficher n'est pas anonyme, elle est dans la table des symboles
                 # donc il est possible que sa valeur ait été modifiée entre temps → on récupère la bonne valeur
                 if to_print.get_name() != "__ANON__":
-                    to_print = self.symbolTable.get_value(to_print.get_name())
+                    to_print = self.symbolTable.get(to_print.get_name())
 
                 if to_print.get_type() == STRING_CONCAT:
                     to_add = ""
                     for item in to_print.get_value():
                         while item.get_type() == REF:
-                            item = self.symbolTable.get_value(item.get_value())
+                            item = self.symbolTable.get(item.get_value())
 
                         to_add += str(item.get_value())
                     self._output_buffer += to_add
@@ -139,7 +139,7 @@ class IntermediateCodeInterpreter:
                     self._output_buffer += str(resolve(*to_print_content))
                 else:
                     while to_print.get_type() == REF:
-                        to_print = self.symbolTable.get_value(to_print.get_value())
+                        to_print = self.symbolTable.get(to_print.get_value())
 
                     self._output_buffer += str(to_print.get_value())
 
@@ -187,7 +187,7 @@ class IntermediateCodeInterpreter:
                 loop_var, iterable_var = task.get_content()
                 # check si l'itérable est bien itérable
                 while iterable_var.get_type() == REF:
-                    iterable_var = self.symbolTable.get_value(iterable_var.get_value())
+                    iterable_var = self.symbolTable.get(iterable_var.get_value())
                 if iterable_var.get_type() != LIST:
                     raise NameError(f"{iterable_var.get_name()} ({iterable_var.get_type()}) not iterable")
 
@@ -202,7 +202,7 @@ class IntermediateCodeInterpreter:
                     print("DEBUG: ENDING FOR LOOP OR JUMP")
                 # deal with scopes
                 index, loop_var_name = task.get_content()
-                loop_var = self.symbolTable.get_value(loop_var_name)
+                loop_var = self.symbolTable.get(loop_var_name)
                 if loop_var.get_next_value() != Iterable.EOL:
                     # On n'a pas encore parcouru toute la liste donc on retourne au début de la boucle
                     if DEBUG:

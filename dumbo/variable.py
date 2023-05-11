@@ -198,7 +198,7 @@ class SymbolTable:
         if k in self._table.keys():
             return self._table[k]
         elif self.parent:
-            return self.parent.get_value(k)
+            return self.parent.get(k)
         else:
             raise NameError(f"'{k}' not in symbol table")
 
