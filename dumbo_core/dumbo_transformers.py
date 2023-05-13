@@ -190,7 +190,7 @@ class DumboBlocTransformer(Transformer):
             print("assignment_expression", self.counter)
             self.counter += 1
 
-        var = items[2]
+        var = items[1]
 
         if not var.get_type():
             # item.get_name() ? initialement, incorrect

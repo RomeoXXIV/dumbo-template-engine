@@ -22,7 +22,7 @@ for_loop_expression : "for" loop_variable_assignment "do" expressions_list "endf
 
 loop_variable_assignment : variable "in" (string_list | variable)
 
-assignment_expression : variable ASSIGNMENT_OPERATOR (string_expression | string_list | arithmetic_expression)
+assignment_expression : variable ":=" (string_expression | string_list | arithmetic_expression)
 
 if_then_expression : "if" if_condition "do" expressions_list "endif"
 
@@ -66,8 +66,6 @@ ARITHMETIC_OPERATOR: "+"| "-" | "*" | "/" | "%"
 COMPARISON_OPERATORS: "<" | ">" | "=" | "!=" | "<=" | ">="
 
 BOOLEAN_OPERATOR: "or" | "and"
-
-ASSIGNMENT_OPERATOR : ":="
 
 %import common.WS
 %ignore WS
