@@ -128,9 +128,9 @@ class DumboBlocTransformer(Transformer):
 
         return None  # pas besoin de renvoyer quoi que ce soit, l'expression est terminée
 
-    def loop_variable_assignment(self, items):
+    def for_loop_clause(self, items):
         if self.DEBUG:
-            print("loop_variable_assignment", self.counter)
+            print("for_loop_clause", self.counter)
             self.counter += 1
 
         loop_var, iterable = items
