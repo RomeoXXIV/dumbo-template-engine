@@ -9,118 +9,6 @@ REF = "REFERENCE"
 BOOL = "BOOLEAN"
 
 
-class Variable:
-    """
-    A class used to represent a variable in Dumbo code.
-
-    Attributes:
-    ----------
-    _name : str
-        the name of the variable.
-    _vtype : str
-        the type of the variable.
-    _value : Any
-        the value of the variable.
-    """
-
-    def __init__(self, name, vtype, value):
-        self._name = name
-        self._vtype = vtype
-        self._value = value
-
-    def get_name(self):
-        return self._name
-
-    def get_type(self):
-        return self._vtype
-
-    def get_value(self):
-        return self._value
-
-    def __eq__(self, o):
-        if isinstance(o, Variable):
-            return self._value == o.get_value() and self._vtype == o.get_type()
-        return self._value == o
-
-    def __str__(self):
-        if self._vtype == LIST:
-            return "(" + ",".join(self._value) + ")"
-        return f"{self._value}"
-
-    def __repr__(self):
-        return f"{{{self._name} := {self._value} ({self._vtype})}}"
-
-
-class Iterable(Variable):
-    """
-    A class used to represent an iterable object, such as a list. Inherits from the Variable class.
-
-    Specific Attributes:
-    -------------------
-    index : int
-        The current index of the iterable object.
-
-    Specific Methods:
-    ----------------
-    increment_index()
-        Increment the current index by 1.
-    get_next_value()
-        Get the next value in the iterable based on the current index.
-    get_value(index=None)
-        Get the value at the specified index, or at the current index if none is provided.
-    """
-
-    EOL = "EOL"  # End Of List
-
-    def __init__(self, name, vtype, value):
-        super().__init__(name, vtype, value)
-        self.index = 0
-
-    def increment_index(self):
-        """Increment the current index by 1."""
-        self.index += 1
-
-    def get_next_value(self):
-        """Get the next value in the iterable based on the current index."""
-        try:
-            result = self.get_value(index=self.index + 1)
-        except IndexError:
-            result = Iterable.EOL
-        return result
-
-    def get_value(self, index=None):
-        """
-        Get the value at the specified index, or at the current index if none is provided.
-
-        Parameters
-        ----------
-        index : int, optional
-            The index of the value to get (default is None).
-
-        Raises
-        ------
-        IndexError
-            If the index is out of range.
-        """
-        if index:
-            if index < len(self._value):
-                return self._value[index]
-            else:
-                raise IndexError("list index out of range")
-
-        if self.index < len(self._value):
-            return self._value[self.index]
-        else:
-            raise IndexError("list index out of range")
-
-    def __str__(self):
-        return "(" + ",".join(self._value) + ")"
-
-    def __repr__(self):
-        return f"{{{self._name} := {self._value[self.index]}, list size = {len(self._value)}, " \
-               f"list content = {self._value}, current index = {self.index}}}"
-
-
 class SymbolTable:
     """
         A class used to represent a symbol table.
@@ -256,3 +144,115 @@ class SymbolTable:
 
     def __repr__(self):
         return str(self)
+
+
+class Variable:
+    """
+    A class used to represent a variable in Dumbo code.
+
+    Attributes:
+    ----------
+    _name : str
+        the name of the variable.
+    _vtype : str
+        the type of the variable.
+    _value : Any
+        the value of the variable.
+    """
+
+    def __init__(self, name, vtype, value):
+        self._name = name
+        self._vtype = vtype
+        self._value = value
+
+    def get_name(self):
+        return self._name
+
+    def get_type(self):
+        return self._vtype
+
+    def get_value(self):
+        return self._value
+
+    def __eq__(self, o):
+        if isinstance(o, Variable):
+            return self._value == o.get_value() and self._vtype == o.get_type()
+        return self._value == o
+
+    def __str__(self):
+        if self._vtype == LIST:
+            return "(" + ",".join(self._value) + ")"
+        return f"{self._value}"
+
+    def __repr__(self):
+        return f"{{{self._name} := {self._value} ({self._vtype})}}"
+
+
+class Iterable(Variable):
+    """
+    A class used to represent an iterable object, such as a list. Inherits from the Variable class.
+
+    Specific Attributes:
+    -------------------
+    index : int
+        The current index of the iterable object.
+
+    Specific Methods:
+    ----------------
+    increment_index()
+        Increment the current index by 1.
+    get_next_value()
+        Get the next value in the iterable based on the current index.
+    get_value(index=None)
+        Get the value at the specified index, or at the current index if none is provided.
+    """
+
+    EOL = "EOL"  # End Of List
+
+    def __init__(self, name, vtype, value):
+        super().__init__(name, vtype, value)
+        self.index = 0
+
+    def increment_index(self):
+        """Increment the current index by 1."""
+        self.index += 1
+
+    def get_next_value(self):
+        """Get the next value in the iterable based on the current index."""
+        try:
+            result = self.get_value(index=self.index + 1)
+        except IndexError:
+            result = Iterable.EOL
+        return result
+
+    def get_value(self, index=None):
+        """
+        Get the value at the specified index, or at the current index if none is provided.
+
+        Parameters
+        ----------
+        index : int, optional
+            The index of the value to get (default is None).
+
+        Raises
+        ------
+        IndexError
+            If the index is out of range.
+        """
+        if index:
+            if index < len(self._value):
+                return self._value[index]
+            else:
+                raise IndexError("list index out of range")
+
+        if self.index < len(self._value):
+            return self._value[self.index]
+        else:
+            raise IndexError("list index out of range")
+
+    def __str__(self):
+        return "(" + ",".join(self._value) + ")"
+
+    def __repr__(self):
+        return f"{{{self._name} := {self._value[self.index]}, list size = {len(self._value)}, " \
+               f"list content = {self._value}, current index = {self.index}}}"

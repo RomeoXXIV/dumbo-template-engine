@@ -5,33 +5,30 @@ from lark import Transformer
 
 class DumboBlocTransformer(Transformer):
     """
-    A class used to transform a 'dumbo bloc' tree into an intermediate code tree.
+    A class used to transform a 'dumbo bloc' tree into an intermediate code stack and fill the symbol table.
 
     Attributes:
     ----------
-    symbol_table : SymbolTable
-        The symbol table of the Dumbo code.
     current_scope : SymbolTable
-        The current scope of the Dumbo code.
+        Keep tracks of the scope during the tree parsing.
     global_symbol_table : SymbolTable
-        The global scope of the Dumbo code.
+        Reference to the higher level of the symbol table. (Root Node or global Symbol Table)
     intermediate_code_interpreter : IntermediateCodeInterpreter
-        The interpreter of the intermediate code.
+        The interpreter of the intermediate code used to fill its stack.
 
     Debugging attributes:
     --------------------
     DEBUG : bool
         True if the debug mode is activated, False otherwise.
     counter : int
-        The number of times a method of this class has been called.
+        Keeps track the index of the node. (only for DEBUG purpose)
     """
 
     def __init__(self, symbol_table, intermediate_code_interpreter, DEBUG=False, *args, **kwargs):
         super(DumboBlocTransformer, self).__init__(*args, **kwargs)
         self._output_buffer = ""
-        self.symbol_table = symbol_table
-        self.current_scope = self.symbol_table
-        self.global_symbol_table = self.symbol_table
+        self.current_scope = symbol_table
+        self.global_symbol_table = symbol_table
         while self.global_symbol_table.parent is not None:
             self.global_symbol_table = self.global_symbol_table.parent
         self.inter = intermediate_code_interpreter
@@ -327,19 +324,19 @@ class DumboBlocTransformer(Transformer):
 
 class DumboTemplateTransformer(Transformer):
     """
-    A class used to transform a 'dumbo template' tree into an intermediate code tree.
+    A class used to transform a 'dumbo template' tree into the output after the execution of dumbo blocs.
 
     Attributes:
     ----------
     current_scope : SymbolTable
-        The current scope of the transformer.
+        Keep tracks of the scope during the tree parsing.
 
     Debugging attributes:
     --------------------
     DEBUG : bool
-        A boolean to activate the debug mode.
+        True if the debug mode is activated, False otherwise.
     counter : int
-        A counter to count the number of times a method is called.
+        Keeps track the index of the node. (only for DEBUG purpose)
     """
 
     def __init__(self, symbol_table, DEBUG=False, *args, **kwargs):
